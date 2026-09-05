@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String            @id @default(cuid())
+  email             String            @unique
+  name              String?
+  image             String?
+  role              UserRole          @default(USER)
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  lastLogin         DateTime?
+  telegramAccounts  TelegramAccount[]
+  posts             Post[]
+  scheduledPosts    ScheduledPost[]
+  activityLogs      ActivityLog[]
+  sessions          Session[]
+  adminSettings     AdminSetting?
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model TelegramAccount {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telegramId        String            @unique
+  username          String?
+  firstName         String?
+  lastName          String?
+  phoneNumber       String?
+  photoUrl          String?
+  sessionData       String            @db.Text  // مشفر
+  isActive          Boolean           @default(true)
+  isConnected       Boolean           @default(false)
+  lastActivity      DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  chats             TelegramChat[]
+  posts             Post[]
+  scheduledPosts    ScheduledPost[]
+  activityLogs      ActivityLog[]
+}
+
+model TelegramChat {
+  id                String            @id @default(cuid())
+  accountId         String
+  account           TelegramAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  chatId            String
+  title             String?
+  type              ChatType
+  username          String?
+  photoUrl          String?
+  isActive          Boolean           @default(true)
+  canPost           Boolean           @default(false)
+  isFavorite        Boolean           @default(false)
+  category          String?
+  lastActivity      DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  posts             Post[]
+  scheduledPosts    ScheduledPost[]
+}
+
+enum ChatType {
+  GROUP
+  CHANNEL
+  SUPERGROUP
+}
+
+model Post {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId         String?
+  account           TelegramAccount?  @relation(fields: [accountId], references: [id])
+  chatId            String?
+  chat              TelegramChat?     @relation(fields: [chatId], references: [id])
+  title             String?
+  content           String            @db.Text
+  status            PostStatus        @default(DRAFT)
+  scheduledFor      DateTime?
+  publishedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  scheduledPosts    ScheduledPost[]
+  activityLogs      ActivityLog[]
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+model ScheduledPost {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId         String
+  account           TelegramAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  chatId            String
+  chat              TelegramChat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  postId            String
+  post              Post              @relation(fields: [postId], references: [id], onDelete: Cascade)
+  scheduledAt       DateTime
+  status            ScheduledStatus   @default(PENDING)
+  executedAt        DateTime?
+  errorMessage      String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  activityLogs      ActivityLog[]
+}
+
+enum ScheduledStatus {
+  PENDING
+  EXECUTED
+  FAILED
+  CANCELLED
+}
+
+model ActivityLog {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId         String?
+  account           TelegramAccount?  @relation(fields: [accountId], references: [id])
+  action            String
+  details           String?           @db.Text
+  status            String
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime          @default(now())
+}
+
+model Session {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken      String            @unique
+  expires           DateTime
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model AdminSetting {
+  id                String            @id @default(cuid())
+  userId            String            @unique
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platformName      String            @default("ميم تلي لتسويق")
+  logoUrl           String?
+  description       String?
+  primaryColor      String            @default("#2563EB")
+  secondaryColor    String            @default("#7C3AED")
+  telegramApiId     String?
+  telegramApiHash   String?
+  telegramBotToken  String?
+  googleClientId    String?
+  googleClientSecret String?
+  rateLimitMax      Int               @default(100)
+  rateLimitWindow   Int               @default(60000)
+  isRegistrationOpen Boolean          @default(true)
+  maintenanceMode   Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+model SystemSetting {
+  id                String            @id @default(cuid())
+  key               String            @unique
+  value             String            @db.Text
+  description       String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
